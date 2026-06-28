@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Seguridad Ciudadana — San Miguel</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+<style>
+/* ───────────── RESET & TOKENS (NUEVO TEMA AZUL) ───────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Paleta de Azules Tecnológicos */
+  --bg-dark:       #0b132b; /* Azul marino profundo de fondo general */
+  --bg-panel:      #1c2541; /* Azul cobalto para contenedores y paneles */
+  --bg-card:       #222e50; /* Azul claro/medio para tarjetas */
+  --bg-card-hover: #2a3b68; /* Azul más claro al pasar el mouse */
+  --border:        #3a506b; /* Azul grisáceo para bordes estructurales */
+  --border-glow:   #5bc0be; /* Cian / Celeste brillante para enfoques y glows */
+
+  /* Colores de Seguridad Ciudadana */
+  --robo:          #ff3a3a;
+  --robo-dim:      #c81d1d;
+  --robo-glow:     rgba(255, 58, 58, 0.4);
+  --accidente:     #ffb703;
+  --accidente-dim: #c78d00;
+  --accidente-glow:rgba(255, 183, 3, 0.4);
+
+  --danger:        #ff4d4d;
+  --warn:          #ffb703;
+  --safe:          #00f5d4; /* Cian neón seguro */
+  --text-primary:  #ffffff;
+  --text-secondary:#cbd5e1; /* Gris azulado claro */
+  --text-dim:      #64748b;
+
+  --font-display: 'Oswald', sans-serif;
+  --font-body:    'Inter', sans-serif;
+  --font-mono:    'Roboto Mono', monospace;
+  --panel-w: 320px;
+  --topbar-h: 65px;
+}
+
+html, body { height: 100%; overflow: hidden; background: var(--bg-dark); color: var(--text-primary); font-family: var(--font-body); }
+
+/* ───────────── TOPBAR ───────────── */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+  background: linear-gradient(90deg, #0b132b 0%, #1c2541 50%, #0b132b 100%);
+  border-bottom: 2px solid var(--border-glow);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; z-index: 1100;
+  box-shadow: 0 4px 20px rgba(0,0,0,.5);
+}
+#topbar .logo-area {
+  display: flex; align-items: center; gap: 14px;
+}
+#topbar .logo-icon {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, #1d3557 0%, var(--border-glow) 100%);
+  border-radius: 8px; display: grid; place-items: center; font-size: 20px; flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(91, 192, 190, 0.4);
+}
+#topbar h1 {
+  font-family: var(--font-display); font-size: 16px; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--text-primary); line-height: 1.2;
+}
+#topbar h1 span { color: var(--text-secondary); font-weight: 400; font-size: 11px; display: block; letter-spacing: .08em; margin-top: 2px;}
+
+.topbar-right { display: flex; align-items: center; gap: 14px; }
+
+.badge-live {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(0, 245, 212, 0.1); border: 1px solid rgba(0, 245, 212, 0.4);
+  border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600;
+  color: var(--safe); letter-spacing: .06em; font-family: var(--font-display);
+}
+.badge-live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--safe); animation: pulse-dot 1.4s infinite; }
+@keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+.topbar-stat { text-align: center; min-width: 80px; }
+.topbar-stat .val { font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1; }
+.topbar-stat .lbl { font-size: 9px; color: var(--text-secondary); letter-spacing: .05em; text-transform: uppercase; margin-top: 2px; }
+.topbar-stat.robo .val { color: var(--robo); }
+.topbar-stat.accidente .val { color: var(--accidente); }
+.topbar-divider { width: 1px; height: 35px; background: var(--border); }
+
+/* ───────────── LAYOUT ───────────── */
+#app {
+  position: fixed; top: var(--topbar-h); left: 0; right: 0; bottom: 0;
+  display: flex;
+}
+
+/* ───────────── LEFT PANEL ───────────── */
+#panel-left {
+  width: var(--panel-w); flex-shrink: 0;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  transition: width .3s ease;
+  z-index: 1000;
+}
+#panel-left.collapsed { width: 0; }
+
+.panel-section { border-bottom: 1px solid var(--border); }
+.panel-header {
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; user-select: none;
+}
+.panel-header h3 {
+  font-family: var(--font-display); font-size: 12px; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--text-primary);
+}
+.panel-header .chevron { color: var(--text-secondary); font-size: 11px; transition: transform .2s; }
+.panel-header.open .chevron { transform: rotate(180deg); }
+.panel-body { overflow: hidden; }
+
+/* Bases cartográficas */
+.base-options { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.base-btn {
+  display: flex; align-items: center; gap: 12px; padding: 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-card); color: var(--text-primary);
+  cursor: pointer; font-family: var(--font-body); font-size: 12px;
+  transition: all .2s; text-align: left;
+}
+.base-btn:hover { background: var(--bg-card-hover); border-color: var(--border-glow); }
+.base-btn.active { background: rgba(91, 192, 190, 0.15); border-color: var(--border-glow); color: var(--text-primary); }
+.base-btn .ico { width: 32px; height: 24px; border-radius: 4px; flex-shrink: 0; }
+.ico-sat { background: linear-gradient(135deg,#153015,#224422,#336622); border: 1px solid #444; }
+.ico-osm { background: linear-gradient(135deg,#a5c7f7,#6ea4e3,#4183d7); border: 1px solid #444; }
+.ico-dark { background: linear-gradient(135deg,#121214,#1c1c24,#252538); border: 1px solid #444; }
+
+/* Capas temáticas */
+.layer-options { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.layer-toggle {
+  display: flex; align-items: center; justify-content: space-between; padding: 10px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card);
+}
+.layer-toggle .layer-info { display: flex; align-items: center; gap: 10px; }
+.layer-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.layer-dot.robo { background: var(--robo); box-shadow: 0 0 8px var(--robo-glow); }
+.layer-dot.accidente { background: var(--accidente); box-shadow: 0 0 8px var(--accidente-glow); }
+.layer-name { font-size: 13px; font-weight: 600; }
+.layer-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+/* Toggle switch */
+.toggle { position: relative; width: 38px; height: 20px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; inset: 0; border-radius: 20px; background: var(--border); cursor: pointer; transition: .2s; }
+.slider::before { content: ''; position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+.toggle input:checked + .slider { background: var(--robo); }
+.toggle input:checked + .slider.acc-slider { background: var(--accidente); }
+.toggle input:checked + .slider::before { transform: translateX(18px); }
+
+/* Leyenda */
+.legend-body { padding: 12px; }
+.legend-section { margin-bottom: 14px; }
+.legend-section-title { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--border-glow); margin-bottom: 8px; font-family: var(--font-display); }
+.legend-items { display: flex; flex-direction: column; gap: 6px; }
+.legend-item { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-secondary); }
+.legend-sym { width: 18px; height: 18px; flex-shrink: 0; border-radius: 50%; border: 2px solid currentColor; display: grid; place-items: center; font-size: 9px; font-weight: bold; }
+.legend-sym.sev-high { color: var(--danger); background: rgba(255,68,68,.15); }
+.legend-sym.sev-med  { color: var(--warn);  background: rgba(255,183,3,.15); }
+.legend-sym.sev-low  { color: var(--safe);  background: rgba(0, 245, 212, 0.15); }
+
+/* Stats panel */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; }
+.stat-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 8px; text-align: center;
+}
+.stat-card .num { font-family: var(--font-display); font-size: 24px; font-weight: 700; line-height: 1; }
+.stat-card .lbl { font-size: 9px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-secondary); margin-top: 4px; }
+.stat-card.r { border-bottom: 3px solid var(--robo); }
+.stat-card.r .num { color: var(--robo); }
+.stat-card.ac { border-bottom: 3px solid var(--accidente); }
+.stat-card.ac .num { color: var(--accidente); }
+.stat-card.d .num { color: var(--danger); }
+.stat-card.a .num { color: var(--safe); }
+
+/* ───────────── MAP CONTAINER ───────────── */
+#map-wrap { flex: 1; position: relative; }
+#map { width: 100%; height: 100%; }
+
+/* Botones flotantes de mapa de Leaflet */
+#map.reporting-mode { cursor: crosshair !important; }
+
+/* Panel toggle buttons */
+.panel-toggle-btn {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 60px; background: var(--bg-panel);
+  border: 1px solid var(--border); cursor: pointer;
+  display: grid; place-items: center; color: var(--text-secondary);
+  font-size: 11px; z-index: 900; transition: all .2s;
+}
+.panel-toggle-btn:hover { background: var(--bg-card); color: var(--text-primary); border-color: var(--border-glow); }
+#toggle-left  { left: 0; border-radius: 0 6px 6px 0; border-left: none; }
+#toggle-right { right: 0; border-radius: 6px 0 0 6px; border-right: none; }
+
+/* Scale bar override */
+.leaflet-control-scale-line {
+  font-family: var(--font-mono) !important; font-size: 10px !important;
+  background: rgba(28, 37, 65, 0.9) !important; border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Zoom control */
+.leaflet-control-zoom { border: 1px solid var(--border) !important; border-radius: 6px !important; overflow: hidden; }
+.leaflet-control-zoom a { background: var(--bg-panel) !important; color: var(--text-secondary) !important; border-color: var(--border) !important; }
+.leaflet-control-zoom a:hover { background: var(--bg-card) !important; color: var(--text-primary) !important; border-color: var(--border-glow) !important;}
+
+/* ───────────── RIGHT PANEL ───────────── */
+#panel-right {
+  width: var(--panel-w); flex-shrink: 0;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  transition: width .3s ease; z-index: 1000;
+}
+#panel-right.collapsed { width: 0; }
+
+.events-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.events-list::-webkit-scrollbar { width: 5px; }
+.events-list::-webkit-scrollbar-track { background: transparent; }
+.events-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.event-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px; cursor: pointer; transition: all .2s;
+  border-left: 4px solid transparent;
+}
+.event-card:hover { background: var(--bg-card-hover); transform: translateX(-2px); border-color: var(--border-glow); }
+.event-card.robo { border-left-color: var(--robo); }
+.event-card.accidente { border-left-color: var(--accidente); }
+.event-card .ec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.event-card .ec-type { font-family: var(--font-display); font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+.event-card.robo .ec-type { color: var(--robo); }
+.event-card.accidente .ec-type { color: var(--accidente); }
+.event-card .ec-sev { font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 20px; font-family: var(--font-display); letter-spacing: .05em; }
+.sev-alta  { background: rgba(255,68,68,.15);  color: var(--danger); border: 1px solid rgba(255,68,68,.3); }
+.sev-media { background: rgba(255,183,3,.12); color: var(--warn);   border: 1px solid rgba(255,183,3,.3); }
+.sev-baja  { background: rgba(0, 245, 212, 0.12);  color: var(--safe);   border: 1px solid rgba(0, 245, 212, 0.3); }
+.event-card .ec-loc { font-size: 12px; color: var(--text-primary); font-weight: 500; margin-bottom: 4px; }
+.event-card .ec-date { font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); }
+.event-card .ec-meta { display: flex; gap: 8px; margin-top: 6px; }
+.ec-tag { font-size: 9px; color: var(--text-secondary); background: rgba(0, 0, 0, 0.2); border-radius: 4px; padding: 2px 6px; font-family: var(--font-mono); }
+
+.filter-bar { padding: 12px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; }
+.filter-chip {
+  font-family: var(--font-display); font-size: 10px; font-weight: 600; letter-spacing: .05em;
+  padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary); cursor: pointer; transition: all .2s;
+}
+.filter-chip.active-a { border-color: var(--border-glow); background: rgba(255,255,255,.05); color: var(--text-primary); }
+.filter-chip.active-r { border-color: var(--robo); background: rgba(255,51,51,.1); color: var(--robo); }
+.filter-chip.active-ac { border-color: var(--accidente); background: rgba(255,183,3,.1); color: var(--accidente); }
+
+/* ───────────── POPUPS & TOOLTIPS ───────────── */
+.leaflet-popup-content-wrapper {
+  background: var(--bg-panel) !important; border: 1px solid var(--border-glow) !important;
+  border-radius: 10px !important; box-shadow: 0 10px 25px rgba(0,0,0,.5) !important;
+  padding: 0 !important;
+}
+.leaflet-popup-tip { background: var(--bg-panel) !important; border: 1px solid var(--border-glow); }
+.leaflet-popup-content { margin: 0 !important; }
+
+.popup-inner { padding: 16px; min-width: 250px; color: var(--text-primary); }
+.popup-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.popup-icon { width: 34px; height: 34px; border-radius: 6px; display: grid; place-items: center; font-size: 16px; flex-shrink: 0; }
+.popup-icon.robo { background: rgba(255,51,51,.15); color: var(--robo); }
+.popup-icon.accidente { background: rgba(255,183,3,.15); color: var(--accidente); }
+.popup-title { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
+.popup-type { font-size: 9px; color: var(--text-secondary); letter-spacing: .05em; text-transform: uppercase; }
+.popup-rows { display: flex; flex-direction: column; gap: 6px; }
+.popup-row { display: flex; justify-content: space-between; align-items: center; }
+.popup-row .pk { font-size: 11px; color: var(--text-secondary); }
+.popup-row .pv { font-size: 11px; color: var(--text-primary); font-weight: 500; font-family: var(--font-mono); text-align: right; max-width: 150px; }
+.popup-sev { display: inline-flex; margin-top: 10px; }
+.popup-desc { font-size: 12px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; border-top: 1px solid var(--border); padding-top: 10px; }
+
+.leaflet-tooltip {
+  background: var(--bg-panel) !important; border: 1px solid var(--border-glow) !important;
+  color: var(--text-primary) !important; font-family: var(--font-body) !important;
+  font-size: 11px !important; border-radius: 6px !important;
+  box-shadow: 0 5px 15px rgba(0,0,0,.4) !important; padding: 6px 10px !important;
+}
+
+/* ───────────── CUSTOM MARKERS ANIMS ───────────── */
+@keyframes ripple-robo {
+  0%   { transform: scale(1);   opacity: .7; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+@keyframes ripple-accidente {
+  0%   { transform: scale(1);   opacity: .7; }
+  100% { transform: scale(2.3); opacity: 0; }
+}
+
+/* ───────────── COORDS BAR ───────────── */
+#coords-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 24px;
+  background: rgba(28, 37, 65, 0.95); border-top: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 12px; gap: 18px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); z-index: 800;
+}
+#coords-bar span { color: var(--text-primary); }
+
+/* ───────────── SEARCH BOX ───────────── */
+#search-box {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  width: 300px; z-index: 900;
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(28, 37, 65, 0.95); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 14px;
+  backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,.4);
+}
+#search-box:focus-within { border-color: var(--border-glow); }
+#search-box i { color: var(--text-secondary); font-size: 13px; }
+#search-box input {
+  background: transparent; border: none; outline: none; color: var(--text-primary);
+  font-family: var(--font-body); font-size: 12px; flex: 1;
+}
+
+/* ───────────── PANEL SCROLL ───────────── */
+.panel-scroll { overflow-y: auto; flex: 1; }
+.panel-scroll::-webkit-scrollbar { width: 4px; }
+.panel-scroll::-webkit-scrollbar-thumb { background: var(--border); }
+
+.collapsible { transition: max-height .3s ease, opacity .3s; overflow: hidden; }
+.collapsible.closed { max-height: 0 !important; opacity: 0; }
+
+/* Timeline mini */
+.timeline { padding: 12px; }
+.tl-item { display: flex; gap: 10px; margin-bottom: 10px; position: relative; }
+.tl-item::before { content:''; position:absolute; left:6px; top:16px; bottom:-10px; width:1px; background:var(--border); }
+.tl-item:last-child::before { display:none; }
+.tl-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; border: 2px solid; }
+.tl-dot.r { border-color: var(--robo); background: rgba(255,51,51,.2); }
+.tl-dot.ac { border-color: var(--accidente); background: rgba(255,183,3,.2); }
+.tl-info .ti-loc { font-size: 12px; color: var(--text-primary); font-weight: 500; }
+.tl-info .ti-date { font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); }
+
+#status-bar {
+  position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+  background: rgba(28, 37, 65, 0.95); border: 1px solid var(--border-glow);
+  border-radius: 20px; padding: 5px 16px;
+  font-size: 10px; color: var(--text-primary); z-index: 850;
+  backdrop-filter: blur(8px); pointer-events: none;
+  font-family: var(--font-mono); box-shadow: 0 4px 15px rgba(0,0,0,.4);
+  transition: opacity 0.5s ease;
+}
+
+/* ───────────── BOTÓN Y FORMULARIO DE REPORTE ───────────── */
+#btn-trigger-report {
+  position: absolute; bottom: 40px; right: 20px; z-index: 900;
+  background: linear-gradient(135deg, #1d3557 0%, var(--border-glow) 100%);
+  color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 30px;
+  padding: 12px 20px; font-family: var(--font-display); font-size: 13px;
+  font-weight: 600; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;
+  cursor: pointer; box-shadow: 0 6px 20px rgba(91, 192, 190, 0.3); transition: all 0.2s ease;
+}
+#btn-trigger-report:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(91, 192, 190, 0.5); }
+#btn-trigger-report.active { background: #fff; color: var(--bg-dark); box-shadow: 0 0 20px #fff; border-color: #fff; }
+
+#report-form-card {
+  position: absolute; top: 80px; left: 20px; z-index: 950;
+  width: 290px; background: rgba(28, 37, 65, 0.98); border: 2px solid var(--border-glow);
+  border-radius: 12px; padding: 16px; box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+  backdrop-filter: blur(10px); display: none; flex-direction: column; gap: 12px;
+}
+#report-form-card h4 { font-family: var(--font-display); font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;}
+#report-form-card .close-form { cursor: pointer; color: var(--text-secondary); font-size: 14px; transition: color 0.2s;}
+#report-form-card .close-form:hover { color: var(--danger); }
+
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em; font-weight: 600; }
+.form-group input, .form-group select, .form-group textarea {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-primary); padding: 8px; font-family: var(--font-body); font-size: 12px; outline: none;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--border-glow); }
+.form-row-coords { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.form-row-coords input { font-family: var(--font-mono); font-size: 10px; background: rgba(0,0,0,0.2); color: var(--text-secondary); }
+
+#report-form-card button[type="submit"] {
+  background: var(--safe); color: var(--bg-dark); border: none; border-radius: 6px;
+  padding: 10px; font-family: var(--font-display); font-weight: 700; font-size: 12px;
+  letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; transition: background 0.2s; margin-top: 4px;
+}
+#report-form-card button[type="submit"]:hover { background: #60efff; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="logo-area">
+    <div class="logo-icon">📡</div>
+    <h1>Identificación de eventos asociados a Seguridad Ciudadana - Cristhian Graz
+      <span>Distrito de San Miguel · Centro de Monitoreo Espacial</span>
+    </h1>
+  </div>
+  <div class="topbar-right">
+    <div class="badge-live"><div class="dot"></div> MONITOREO ACTIVADO</div>
+    <div class="topbar-divider"></div>
+    <div class="topbar-stat robo">
+      <div class="val" id="stat-robo">24</div>
+      <div class="lbl">Robos/Asaltos</div>
+    </div>
+    <div class="topbar-divider"></div>
+    <div class="topbar-stat accidente">
+      <div class="val" id="stat-accidente">18</div>
+      <div class="lbl">Accidentes</div>
+    </div>
+    <div class="topbar-divider"></div>
+    <div class="topbar-stat">
+      <div class="val" style="color:var(--danger)" id="stat-high">11</div>
+      <div class="lbl">Prioridad Alta</div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+
+  <div id="panel-left">
+    <div class="panel-scroll">
+
+      <div class="panel-section">
+        <div class="panel-header open" onclick="toggleSection(this)">
+          <h3><i class="fa fa-layer-group" style="color:var(--border-glow);margin-right:8px"></i>Bases Cartográficas</h3>
+          <i class="fa fa-chevron-down chevron"></i>
+        </div>
+        <div class="collapsible panel-body" style="max-height:220px">
+          <div class="base-options">
+            <button class="base-btn" onclick="setBase('satellite')" id="btn-satellite">
+              <div class="ico ico-sat"></div>
+              <div><div style="font-weight:600">Imágenes Satelitales</div><div style="font-size:10px;color:var(--text-secondary)">Esri World Imagery</div></div>
+            </button>
+            <button class="base-btn active" onclick="setBase('osm')" id="btn-osm">
+              <div class="ico ico-osm"></div>
+              <div><div style="font-weight:600">OpenStreetMap</div><div style="font-size:10px;color:var(--text-secondary)">Estilo Estándar Calles</div></div>
+            </button>
+            <button class="base-btn" onclick="setBase('dark')" id="btn-dark">
+              <div class="ico ico-dark"></div>
+              <div><div style="font-weight:600">Cartografía Sobria</div><div style="font-size:10px;color:var(--text-secondary)">CartoDB Dark Matter</div></div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-header open" onclick="toggleSection(this)">
+          <h3><i class="fa fa-shield-halved" style="color:var(--accidente);margin-right:8px"></i>Capas de Seguridad</h3>
+          <i class="fa fa-chevron-down chevron"></i>
+        </div>
+        <div class="collapsible panel-body" style="max-height:180px">
+          <div class="layer-options">
+            <div class="layer-toggle">
+              <div class="layer-info">
+                <div class="layer-dot robo"></div>
+                <div>
+                  <div class="layer-name" style="color:var(--robo)">Robos y Asaltos</div>
+                  <div class="layer-count" id="cnt-robo">24 reportes hoy</div>
+                </div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="chk-robo" checked onchange="toggleLayer('robo')"><span class="slider"></span></label>
+            </div>
+            <div class="layer-toggle">
+              <div class="layer-info">
+                <div class="layer-dot accidente"></div>
+                <div>
+                  <div class="layer-name" style="color:var(--accidente)">Accidentes de Tránsito</div>
+                  <div class="layer-count" id="cnt-accidente">18 reportes hoy</div>
+                </div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="chk-accidente" checked onchange="toggleLayer('accidente')"><span class="slider acc-slider"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-header open" onclick="toggleSection(this)">
+          <h3><i class="fa fa-list" style="color:var(--text-secondary);margin-right:8px"></i>Simbología Crítica</h3>
+          <i class="fa fa-chevron-down chevron"></i>
+        </div>
+        <div class="collapsible panel-body" style="max-height:300px">
+          <div class="legend-body">
+            <div class="legend-section">
+              <div class="legend-section-title">⚠️ Robos y Asaltos (Frecuencia/Gravedad)</div>
+              <div class="legend-items">
+                <div class="legend-item"><div class="legend-sym sev-high">⚠️</div><span>Prioridad Alta — Robo a mano armada / Violento</span></div>
+                <div class="legend-item"><div class="legend-sym sev-med">⚠️</div><span>Prioridad Media — Hurto agravado / Arrebato</span></div>
+                <div class="legend-item"><div class="legend-sym sev-low">⚠️</div><span>Prioridad Baja — Hurto simple / Sospechosos</span></div>
+              </div>
+            </div>
+            <div class="legend-section">
+              <div class="legend-section-title">🚗 Accidentes Vehiculares</div>
+              <div class="legend-items">
+                <div class="legend-item"><div class="legend-sym sev-high" style="color:var(--accidente);background:rgba(255,183,3,.15)">🚗</div><span>Prioridad Alta — Choque con heridos / Atropello</span></div>
+                <div class="legend-item"><div class="legend-sym sev-med" style="color:var(--accidente);background:rgba(255,183,3,.15)">🚗</div><span>Prioridad Media — Colisión múltiple / Daños materiales</span></div>
+                <div class="legend-item"><div class="legend-sym sev-low" style="color:var(--accidente);background:rgba(255,183,3,.05)">🚗</div><span>Prioridad Baja — Despiste / Incidente menor</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-header open" onclick="toggleSection(this)">
+          <h3><i class="fa fa-chart-pie" style="color:var(--safe);margin-right:8px"></i>Estadísticas Consolidadas</h3>
+          <i class="fa fa-chevron-down chevron"></i>
+        </div>
+        <div class="collapsible panel-body" style="max-height:200px">
+          <div class="stats-grid">
+            <div class="stat-card r"><div class="num" id="card-robo">24</div><div class="lbl">Robos</div></div>
+            <div class="stat-card ac"><div class="num" id="card-accidente">18</div><div class="lbl">Accidentes</div></div>
+            <div class="stat-card d"><div class="num" id="card-high">11</div><div class="lbl">Grave Impacto</div></div>
+            <div class="stat-card a"><div class="num" id="card-total">42</div><div class="lbl">Total Incidencias</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-header open" onclick="toggleSection(this)">
+          <h3><i class="fa fa-bolt" style="color:var(--danger);margin-right:8px"></i>Últimos Despachos Serenazgo</h3>
+          <i class="fa fa-chevron-down chevron"></i>
+        </div>
+        <div class="collapsible panel-body" style="max-height:260px">
+          <div class="timeline" id="live-timeline">
+            <div class="tl-item"><div class="tl-dot r"></div><div class="tl-info"><div class="ti-loc">Robo Armado — Plaza San Miguel</div><div class="ti-date">Hace 5 min · Unidad 12 en camino</div></div></div>
+            <div class="tl-item"><div class="tl-dot ac"></div><div class="tl-info"><div class="ti-loc">Atropello — Av. Universitaria / Marina</div><div class="ti-date">Hace 14 min · Ambulancia en zona</div></div></div>
+            <div class="tl-item"><div class="tl-dot r"></div><div class="tl-info"><div class="ti-loc">Arrebato de Celular — Av. Costanera</div><div class="ti-date">Hace 32 min · Captura efectiva</div></div></div>
+            <div class="tl-item"><div class="tl-dot ac"></div><div class="tl-info"><div class="ti-loc">Choque por Alcance — Av. La Paz</div><div class="ti-date">Hace 1 hora · Tránsito fluido</div></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="map-wrap">
+    <div id="map"></div>
+
+    <div id="search-box">
+      <i class="fa fa-search"></i>
+      <input type="text" placeholder="Buscar por calle, cruce o ID..." id="search-input" oninput="filterSearch(this.value)"/>
+    </div>
+
+    <button id="btn-trigger-report" onclick="toggleReportingMode()">
+      <i class="fa fa-map-pin"></i> <span id="btn-report-text">Reportar Incidencia</span>
+    </button>
+
+    <div id="report-form-card">
+      <h4><span>📝 Nuevo Registro</span> <i class="fa fa-times close-form" onclick="closeReportForm()"></i></h4>
+      <form id="incidence-form" onsubmit="saveNewIncidence(event)">
+        <div class="form-group">
+          <label>Ubicación Geográfica</label>
+          <div class="form-row-coords">
+            <input type="text" id="form-lat" readonly placeholder="Latitud">
+            <input type="text" id="form-lng" readonly placeholder="Longitud">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="form-type">Tipo de Evento</label>
+          <select id="form-type" required>
+            <option value="robo">🚨 Robo / Asalto</option>
+            <option value="accidente">🚗 Accidente de Tránsito</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="form-loc">Dirección / Referencia</label>
+          <input type="text" id="form-loc" required placeholder="Ej. Av. La Marina Cdra 21">
+        </div>
+        <div class="form-group">
+          <label for="form-sev">Severidad</label>
+          <select id="form-sev" required>
+            <option value="baja">Baja / Leve</option>
+            <option value="media">Media / Moderada</option>
+            <option value="alta">Alta / Urgente</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="form-mod">Modalidad / Detalles</label>
+          <input type="text" id="form-mod" required placeholder="Ej. Arrebato en moto / Choque frontal">
+        </div>
+        <div class="form-group">
+          <label for="form-desc">Descripción técnica del suceso</label>
+          <textarea id="form-desc" rows="2" required placeholder="Escriba los detalles observados por cámaras..."></textarea>
+        </div>
+        <button type="submit">Ingresar Alerta</button>
+      </form>
+    </div>
+
+    <button class="panel-toggle-btn" id="toggle-left" onclick="togglePanel('left')" title="Panel izquierdo">
+      <i class="fa fa-chevron-left" id="icon-left"></i>
+    </button>
+    <button class="panel-toggle-btn" id="toggle-right" onclick="togglePanel('right')" title="Panel derecho">
+      <i class="fa fa-chevron-right" id="icon-right"></i>
+    </button>
+
+    <div id="coords-bar">
+      <span>LAT: <span id="lat-val">-12.0785</span></span>
+      <span>LNG: <span id="lng-val">-77.0911</span></span>
+      <span>ZOOM: <span id="zoom-val">14</span></span>
+      <span style="margin-left:auto;color:var(--text-secondary)">🌐 Sistema de Coordenadas: WGS84 / EPSG:4326</span>
+    </div>
+
+    <div id="status-bar">Inicializando geodatabase de Seguridad Ciudadana…</div>
+  </div>
+
+  <div id="panel-right">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+      <div style="font-family:var(--font-display);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-primary)">
+        <i class="fa fa-list-ul" style="color:var(--border-glow);margin-right:8px"></i>Registro de Incidencias
+      </div>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-chip active-a" id="fc-all"   onclick="filterEvents('all')">TODOS</button>
+      <button class="filter-chip"          id="fc-robo" onclick="filterEvents('robo')">🚨 ROBOS</button>
+      <button class="filter-chip"          id="fc-accidente" onclick="filterEvents('accidente')">🚗 ACCID.</button>
+    </div>
+    <div class="events-list" id="events-list"></div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   DATOS DE MUESTRA REALISTAS — San Miguel, Lima (42 eventos)
+═══════════════════════════════════════════════════════════ */
+const EVENTS = [
+  // ---- ROBOS ----
+  {id:1, type:'robo', loc:'Plaza San Miguel (Interiores)', lat:-12.0762, lng:-77.0864, sev:'media', fecha:'2026-06-21', hora:'13:10', modalidad:'Tendido / Hurto sistemático', involucrados:'1 sospechoso', desc:'Hurto de tiendas de tecnología en pasillo principal. Cámaras de videovigilancia alertaron a Central.'},
+  {id:2, type:'robo', loc:'Av. Universitaria / Av. La Marina', lat:-12.0782, lng:-77.0862, sev:'alta', fecha:'2026-06-21', hora:'11:45', modalidad:'Asalto con réplica de arma', involucrados:'2 motos lineales', desc:'Arrebato violento de mochila y laptop a estudiante universitario. Capturados en persecución por Serenazgo Integrado.'},
+  {id:3, type:'robo', loc:'Av. Costanera, Cdra 14', lat:-12.0915, lng:-77.0885, sev:'alta', fecha:'2026-06-21', hora:'02:30', modalidad:'Robo Vehicular (Bujía)', involucrados:'1 vehículo causante', desc:'Fractura de parabrisas a vehículo estacionado en el malecón. Sustracción de autopartes.'},
+  {id:4, type:'robo', loc:'Av. La Paz / Jr. Arica', lat:-12.0888, lng:-77.0952, sev:'alta', fecha:'2026-06-20', hora:'21:15', modalidad:'Asalto a mano armada', involucrados:'1 peatón armado', desc:'Asalto a minimarket local. Delincuente neutralizado gracias al botón de pánico del establecimiento.'},
+  {id:5, type:'robo', loc:'Parque de las Leyendas (Exteriores)', lat:-12.0712, lng:-77.0881, sev:'media', fecha:'2026-06-20', hora:'16:20', modalidad:'Arrebato de celular / Bujía', involucrados:'1 bujero a pie', desc:'Aprovechando la congestión vehicular, sujeto sustrajo celular desde la ventana de un taxi.'},
+  {id:6, type:'robo', loc:'Av. Venezuela / Av. Universitaria', lat:-12.0622, lng:-77.0851, sev:'alta', fecha:'2026-06-20', hora:'19:40', modalidad:'Robo agravado en falso colectivo', involucrados:'1 auto sedán blanco', desc:'Pasajero abordó unidad informal y fue despojado de sus pertenencias bajo amenaza.'},
+  {id:7, type:'robo', loc:'Calle Brígida Silva de Ochoa', lat:-12.0769, lng:-77.0912, sev:'baja', fecha:'2026-06-20', hora:'10:05', modalidad:'Hurto simple', involucrados:'1 sospechoso habitual', desc:'Hurto de bicicleta del interior de un rack de estacionamiento residencial.'},
+  {id:8, type:'robo', loc:'Av. Escardó / Calle Los Patriotas', lat:-12.0795, lng:-77.0965, sev:'media', fecha:'2026-06-19', hora:'23:10', modalidad:'Asalto al paso', involucrados:'1 mototaxi azul informal', desc:'Dos sujetos descendieron de mototaxi para asaltar a transeúnte. Vecinos activaron la alarma comunitaria.'},
+  {id:9, type:'robo', loc:'Jr. Libertad / Av. Federico Gallese', lat:-12.0861, lng:-77.0921, sev:'baja', fecha:'2026-06-19', hora:'14:15', modalidad:'Tenderos', involucrados:'2 mujeres', desc:'Intervención en botica local por intento de hurto de productos de cuidado personal.'},
+  {id:10,type:'robo', loc:'Av. Elmer Faucett / Av. Precursores', lat:-12.0731, lng:-77.1025, sev:'alta', fecha:'2026-06-19', hora:'08:30', modalidad:'Robo a cambista', involucrados:'2 delincuentes en moto', desc:'Fuga con dirección al Callao tras arrebato de dinero en efectivo. Plan Cerco activado con la PNP.'},
+  // -- PUNTOS DE MONITOREO ROBOS EXTRA (ID 11-24) --
+  {id:11,type:'robo', loc:'Malecón San Miguel', lat:-12.0931, lng:-77.0842, sev:'baja', fecha:'2026-06-18', hora:'18:00', modalidad:'Hurto al paso', involucrados:'1 delincuente', desc:'Sustracción de pertenencias descuidadas en bancas de recreación.'},
+  {id:12,type:'robo', loc:'Av. La Marina, Cdra 25', lat:-12.0791, lng:-77.0945, sev:'media', fecha:'2026-06-18', hora:'19:15', modalidad:'Asalto comercial', involucrados:'1 sujeto', desc:'Robo frustrado en local de comida rápida por rápida acción de cuadrante.'},
+  {id:13,type:'robo', loc:'Jr. Castilla / Calle San Martín', lat:-12.0845, lng:-77.0968, sev:'media', fecha:'2026-06-18', hora:'20:45', modalidad:'Robo a transeúte', involucrados:'2 delincuentes', desc:'Interceptación a pareja. Serenazgo recuperó objetos tras persecución de 4 cuadras.'},
+  {id:14,type:'robo', loc:'Av. Universitaria / Calle Los Álamos', lat:-12.0685, lng:-77.0859, sev:'baja', fecha:'2026-06-17', hora:'15:30', modalidad:'Hurto de autopartes', involucrados:'Sin datos', desc:'Reporte de pérdida de espejos retrovisores de camioneta.'},
+  {id:15,type:'robo', loc:'Pasaje San Luis', lat:-12.0821, lng:-77.0911, sev:'baja', fecha:'2026-06-17', hora:'11:22', modalidad:'Sustracción menor', involucrados:'1 sujeto', desc:'Robo de herramientas de caja de mantenimiento de telefonía.'},
+  {id:16,type:'robo', loc:'Av. La Paz / Calle San Francisco', lat:-12.0899, lng:-77.0991, sev:'alta', fecha:'2026-06-16', hora:'22:00', modalidad:'Asalto con arma blanca', involucrados:'1 delincuente', desc:'Sujeto amenazó a repartidor de delivery para robarle la motocicleta.'},
+  {id:17,type:'robo', loc:'Av. Costanera / Jr. Tacna', lat:-12.0891, lng:-77.0929, sev:'media', fecha:'2026-06-16', hora:'01:10', modalidad:'Arrebato', involucrados:'1 moto', desc:'Afectación a peatón saliendo de reunión social.'},
+  {id:18,type:'robo', loc:'Av. Precursores / Av. Insurgentes', lat:-12.0745, lng:-77.1001, sev:'media', fecha:'2026-06-15', hora:'14:35', modalidad:'Robo a vivienda (Falso técnico)', involucrados:'2 impostores', desc:'Falsos operarios de cable intentaron ingresar con documentos fraguados.'},
+  {id:19,type:'robo', loc:'Calle Cueva', lat:-12.0741, lng:-77.0825, sev:'baja', fecha:'2026-06-15', hora:'17:50', modalidad:'Hurto de accesorios', involucrados:'1 delincuente', desc:'Sustracción de emblema de vehículo de alta gama.'},
+  {id:20,type:'robo', loc:'Av. La Marina / Av. Escardó', lat:-12.0798, lng:-77.0988, sev:'alta', fecha:'2026-06-14', hora:'20:05', modalidad:'Bujazo masivo', involucrados:'Grupo delincuencial', desc:'Ataque a tres vehículos detenidos por semáforo en rojo. Un capturado.'},
+  {id:21,type:'robo', loc:'Calle Independencia', lat:-12.0872, lng:-77.0941, sev:'baja', fecha:'2026-06-14', hora:'09:12', modalidad:'Hurto simple', involucrados:'1 sujeto', desc:'Sustracción de luminarias externas de un condominio.'},
+  {id:22,type:'robo', loc:'Av. Venezuela, Cdra 22', lat:-12.0631, lng:-77.0899, sev:'media', fecha:'2026-06-13', hora:'18:40', modalidad:'Robo al paso', involucrados:'1 delincuente a pie', desc:'Arrebato de celular a pasajero de bus de transporte público.'},
+  {id:23,type:'robo', loc:'Jr. Camino Real', lat:-12.0772, lng:-77.1041, sev:'media', fecha:'2026-06-13', hora:'12:15', modalidad:'Estafa / Cuento de las monedas', involucrados:'2 mujeres', desc:'Estafa en agravio de adulta mayor en exteriores de entidad bancaria.'},
+  {id:24,type:'robo', loc:'Av. Universitaria / Calle Riva Agüero', lat:-12.0741, lng:-77.0858, sev:'baja', fecha:'2026-06-12', hora:'23:45', modalidad:'Sospechosos en flagrancia', involucrados:'2 sujetos intervenidos', desc:'Control de identidad positivo para requisitoriados por hurto agravado.'},
+
+  // ---- ACCIDENTES DE TRÁNSITO ----
+  {id:25,type:'accidente', loc:'Av. La Marina / Av. Universitaria (Cruce Crítico)', lat:-12.0784, lng:-77.0860, sev:'alta', fecha:'2026-06-21', hora:'11:55', modalidad:'Colisión Múltiple', involucrados:'3 autos, 1 bus interurbano', desc:'Falta de frenos en unidad de transporte ocasionó choque por alcance. 4 heridos leves derivados a Clínica San Gabriel.'},
+  {id:26,type:'accidente', loc:'Av. Costanera / Av. Bertolotto', lat:-12.0925, lng:-77.0815, sev:'alta', fecha:'2026-06-21', hora:'05:30', modalidad:'Despiste y Volcadura', involucrados:'1 camioneta 4x4', desc:'Exceso de velocidad y neblina densa matutina causaron despiste contra baranda del malecón. Conductor dio positivo a dosaje.'},
+  {id:27,type:'accidente', loc:'Av. Elmer Faucett / Av. Venezuela', lat:-12.0655, lng:-77.1030, sev:'alta', fecha:'2026-06-20', hora:'18:10', modalidad:'Atropello', involucrados:'1 furgón de carga, 1 peatón', desc:'Peatón cruzó intempestivamente fuera del crucero peatonal bajo el puente. Bomberos B-29 atendieron emergencia.'},
+  {id:28,type:'accidente', loc:'Av. Escardó / Av. Precursores', lat:-12.0761, lng:-77.0982, sev:'media', fecha:'2026-06-20', hora:'14:22', modalidad:'Choque en ángulo / semaforazo', involucrados:'2 autos particulares', desc:'Uno de los vehículos no respetó la luz roja intermitente. Solo daños materiales severos en carrocerías.'},
+  {id:29,type:'accidente', loc:'Av. La Marina, Cdra 18', lat:-12.0778, lng:-77.0898, sev:'baja', fecha:'2026-06-20', hora:'09:45', modalidad:'Rozamiento / Raspón', involucrados:'1 minivan, 1 mototaxi', desc:'Incidente menor que generó congestión hacia el oeste por 20 minutos hasta retiro de unidades.'},
+  {id:30,type:'accidente', loc:'Circuito de Playas (Costa Verde San Miguel)', lat:-12.0955, lng:-77.0911, sev:'media', fecha:'2026-06-19', hora:'22:15', modalidad:'Despiste contra rocas', involucrados:'1 auto deportivo', desc:'Pérdida de control en la curva por pista mojada debido a garúa limeña. Choque contra talud.'},
+  {id:31,type:'accidente', loc:'Av. Universitaria / Av. Venezuela', lat:-12.0628, lng:-77.0855, sev:'media', fecha:'2026-06-19', hora:'07:30', modalidad:'Choque lateral', involucrados:'1 combi, 1 auto particular', desc:'Maniobra imprudente de corretaje de pasajeros por parte del vehículo de transporte público.'},
+  {id:32,type:'accidente', loc:'Jr. Sucre / Jr. Libertad', lat:-12.0835, lng:-77.0928, sev:'baja', fecha:'2026-06-19', hora:'12:00', modalidad:'Colisión con ciclista', involucrados:'1 auto, 1 ciclista con EPP', desc:'Apertura imprudente de puerta de conductor impactó ciclista. Ciclista sin lesiones gracias al casco.'},
+  {id:33,type:'accidente', loc:'Av. Insurgentes / Av. La Marina', lat:-12.0805, lng:-77.1022, sev:'media', fecha:'2026-06-18', hora:'17:55', modalidad:'Choque por alcance', involucrados:'2 camionetas', desc:'Frenado intempestivo por congestión. Intervención de Policía de Tránsito.'},
+  {id:34,type:'accidente', loc:'Av. La Paz / Av. Escardó', lat:-12.0908, lng:-77.0975, sev:'alta', fecha:'2026-06-18', hora:'23:40', modalidad:'Choque violento contra poste', involucrados:'1 vehículo particular', desc:'Conductor dormido al volante impactó poste de luz dejándolo inclinado. Enel acudió para corte energético.'},
+  {id:35,type:'accidente', loc:'Calle Los Corales', lat:-12.0812, lng:-77.0829, sev:'baja', fecha:'2026-06-17', hora:'08:15', modalidad:'Atropello de mascota', involucrados:'1 vehículo, 1 can doméstico', desc:'Conductor auxilió a la mascota junto con el dueño llevándolo a veterinaria municipal.'},
+  {id:36,type:'accidente', loc:'Av. Universitaria / Av. Precursores', lat:-12.0725, lng:-77.0866, sev:'media', fecha:'2026-06-17', hora:'19:10', modalidad:'Choque de motocicleta', involucrados:'1 moto delivery, 1 auto', desc:'Corte de circulación por giro indebido a la izquierda del automóvil.'},
+  {id:37,type:'accidente', loc:'Av. Costanera / Jr. Vigil', lat:-12.0901, lng:-77.0902, sev:'media', fecha:'2026-06-16', hora:'16:20', modalidad:'Colisión por retroceso', involucrados:'2 autos particulares', desc:'Incidente en rampa de acceso residencial.'},
+  {id:38,type:'accidente', loc:'Av. Venezuela / Av. Faucett', lat:-12.0651, lng:-77.1029, sev:'baja', fecha:'2026-06-16', hora:'11:40', modalidad:'Incidente de bus varado', involucrados:'1 bus de transporte', desc:'Rotura de eje bloqueó carril derecho por 40 minutos hasta llegada de grúa.'},
+  {id:39,type:'accidente', loc:'Jr. San Martín, Cdra 4', lat:-12.0852, lng:-77.0945, sev:'baja', fecha:'2026-06-15', hora:'15:00', modalidad:'Raspón estacionado', involucrados:'2 autos particulares', desc:'Vehículo rozó a otro debidamente estacionado al intentar realizar maniobra de parqueo.'},
+  {id:40,type:'accidente', loc:'Av. La Marina, Cdra 31', lat:-12.0815, lng:-77.0999, sev:'alta', fecha:'2026-06-14', hora:'04:10', modalidad:'Despiste y choque con árbol', involucrados:'1 camioneta', desc:'Exceso de velocidad. Tres ocupantes trasladados con heridas de diversa consideración.'},
+  {id:41,type:'accidente', loc:'Calle Los Patriotas / Escardó', lat:-12.0789, lng:-77.0968, sev:'baja', fecha:'2026-06-14', hora:'10:30', modalidad:'Choque leve de motos', involucrados:'2 motocicletas', desc:'Rozamiento menor entre dos repartidores independientes.'},
+  {id:42,type:'accidente', loc:'Circuito de Playas (Bajada Sucre)', lat:-12.0942, lng:-77.0801, sev:'media', fecha:'2026-06-13', hora:'21:00', modalidad:'Despiste por frenado', involucrados:'1 auto', desc:'Patinaje en zona de curvas debido al rocío marino.'}
+];
+
+/* ═══════════════════════════════════════════════════════════
+   MAPA Y CAPAS CONFIG
+═══════════════════════════════════════════════════════════ */
+const map = L.map('map', {
+  center: [-12.080, -77.091],
+  zoom: 14,
+  zoomControl: false,
+  attributionControl: true
+});
+
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
+L.control.scale({ position: 'bottomright', imperial: false }).addTo(map);
+
+const baseLayers = {
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap colaboradores', maxZoom: 19
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution:'© Esri, DigitalGlobe, GeoEye, Earthstar Geographics', maxZoom: 19
+  }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution:'© CartoDB · Map data © OpenStreetMap', subdomains:'abcd', maxZoom: 19
+  })
+};
+
+// Por defecto inicia en el mapa base OSM, puedes cambiarlo a dark si prefieres
+baseLayers.osm.addTo(map);
+
+function setBase(name) {
+  Object.values(baseLayers).forEach(l => map.removeLayer(l));
+  baseLayers[name].addTo(map);
+  document.querySelectorAll('.base-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-'+name).classList.add('active');
+}
+
+const clusterRobo = L.markerClusterGroup({
+  iconCreateFunction: c => L.divIcon({
+    html:`<div style="width:38px;height:38px;border-radius:50%;background:rgba(179,20,20,.65);border:2px solid #ff3333;display:grid;place-items:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:14px;color:#fff;box-shadow:0 0 12px var(--robo-glow)">${c.getChildCount()}</div>`,
+    className:'', iconSize:[38,38]
+  }),
+  maxClusterRadius: 50
+});
+
+const clusterAccidente = L.markerClusterGroup({
+  iconCreateFunction: c => L.divIcon({
+    html:`<div style="width:38px;height:38px;border-radius:50%;background:rgba(199,141,0,.65);border:2px solid #ffb703;display:grid;place-items:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:14px;color:#fff;box-shadow:0 0 12px var(--accidente-glow)">${c.getChildCount()}</div>`,
+    className:'', iconSize:[38,38]
+  }),
+  maxClusterRadius: 50
+});
+
+function getRoboIcon(sev) {
+  const colors = { alta: '#ff1a1a', media: '#ff5c5c', baja: '#ff8a8a' };
+  const sizes  = { alta: 30, media: 25, baja: 21 };
+  const c = colors[sev]; const s = sizes[sev];
+  const pulse = sev === 'alta' ? `<circle cx="${s}" cy="${s}" r="${s*.6}" fill="${c}" opacity="0" style="animation:ripple-robo 1.5s infinite ease-out"/>` : '';
+  
+  return L.divIcon({
+    html:`<svg xmlns="http://www.w3.org/2000/svg" width="${s*2}" height="${s*2}" viewBox="0 0 ${s*2} ${s*2}">
+      <defs>
+        <radialGradient id="rg${sev}" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#ffffff"/><stop offset="30%" stop-color="#ff5c5c"/><stop offset="100%" stop-color="${c}"/>
+        </radialGradient>
+        <filter id="glowR"><feGaussianBlur stdDeviation="3" result="blur"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+      </defs>
+      ${pulse}
+      <circle cx="${s}" cy="${s}" r="${s*.75}" fill="url(#rg${sev})" opacity=".95" filter="url(#glowR)"/>
+      <circle cx="${s}" cy="${s}" r="${s*.75}" fill="none" stroke="#ffffff" stroke-width="1.5" opacity=".8"/>
+      <text x="${s}" y="${s+5}" text-anchor="middle" font-size="${s*.75}" font-weight="bold" fill="white">⚠️</text>
+    </svg>`,
+    className:'', iconSize:[s*2,s*2], iconAnchor:[s,s]
+  });
+}
+
+function getAccidenteIcon(sev) {
+  const colors = { alta: '#ff8c00', media: '#ffb703', baja: '#ffd166' };
+  const sizes  = { alta: 30, media: 25, baja: 21 };
+  const c = colors[sev]; const s = sizes[sev];
+  const pulse = sev === 'alta' ? `<circle cx="${s}" cy="${s}" r="${s*.6}" fill="${c}" opacity="0" style="animation:ripple-accidente 1.6s infinite ease-out"/>` : '';
+
+  return L.divIcon({
+    html:`<svg xmlns="http://www.w3.org/2000/svg" width="${s*2}" height="${s*2}" viewBox="0 0 ${s*2} ${s*2}">
+      <defs>
+        <linearGradient id="acg${sev}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#fffb00"/><stop offset="100%" stop-color="${c}"/>
+        </linearGradient>
+        <filter id="glowA"><feGaussianBlur stdDeviation="2.5" result="blur"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+      </defs>
+      ${pulse}
+      <rect x="${s*.35}" y="${s*.35}" width="${s*1.3}" height="${s*1.3}" rx="4" fill="url(#acg${sev})" opacity=".95" filter="url(#glowA)" transform="rotate(45 ${s} ${s})"/>
+      <text x="${s}" y="${s+5}" text-anchor="middle" font-size="${s*.7}" fill="black" font-weight="bold">🚗</text>
+    </svg>`,
+    className:'', iconSize:[s*2,s*2], iconAnchor:[s,s]
+  });
+}
+
+function buildPopup(ev) {
+  const sevCls = 'sev-'+ev.sev;
+  const sevLbl = ev.sev==='alta'?'URGENTE / ALTA':ev.sev==='media'?'MODERADA / MEDIA':'BAJA / INFORME';
+  const extraRow = ev.type==='robo'
+    ? `<div class="popup-row"><span class="pk">Modalidad delictiva</span><span class="pv">${ev.modalidad}</span></div>`
+    : `<div class="popup-row"><span class="pk">Tipo de Accidente</span><span class="pv">${ev.modalidad}</span></div>`;
+  const involucradosLbl = ev.type==='robo' ? 'Involucrados/Fuga' : 'Vehículos / Entidades';
+
+  return `<div class="popup-inner">
+    <div class="popup-header">
+      <div class="popup-icon ${ev.type}">${ev.type==='robo'?'🚨':'🚗'}</div>
+      <div>
+        <div class="popup-title">${ev.loc}</div>
+        <div class="popup-type">${ev.type==='robo'?'REPORTE DE ROBO':'ACCIDENTE VIAL'} · ID #${ev.id}</div>
+      </div>
+    </div>
+    <div class="popup-rows">
+      <div class="popup-row"><span class="pk">Fecha / Hora</span><span class="pv">${ev.fecha} · ${ev.hora}</span></div>
+      ${extraRow}
+      <div class="popup-row"><span class="pk">${involucradosLbl}</span><span class="pv">${ev.involucrados || 'Bajo Análisis'}</span></div>
+    </div>
+    <div class="popup-sev"><span class="ec-sev ${sevCls}">PRIORIDAD ${sevLbl}</span></div>
+    <div class="popup-desc">${ev.desc}</div>
+  </div>`;
+}
+
+let markers = {};
+function createMarker(ev) {
+  const icon = ev.type === 'robo' ? getRoboIcon(ev.sev) : getAccidenteIcon(ev.sev);
+  const marker = L.marker([ev.lat, ev.lng], {icon})
+    .bindPopup(buildPopup(ev), {maxWidth: 300})
+    .bindTooltip(`<b>${ev.type==='robo'?'🚨 Robo':'🚗 Accidente'}</b> — ${ev.loc}<br><small>Hora: ${ev.hora} · Severidad: ${ev.sev.toUpperCase()}</small>`, {
+      direction: 'top', offset: [0, -10]
+    });
+  
+  markers[ev.id] = marker;
+  if (ev.type === 'robo') clusterRobo.addLayer(marker);
+  else clusterAccidente.addLayer(marker);
+}
+
+// Inicializar marcadores
+EVENTS.forEach(createMarker);
+map.addLayer(clusterRobo);
+map.addLayer(clusterAccidente);
+
+function toggleLayer(type) {
+  if(type==='robo') {
+    document.getElementById('chk-robo').checked ? map.addLayer(clusterRobo) : map.removeLayer(clusterRobo);
+  } else {
+    document.getElementById('chk-accidente').checked ? map.addLayer(clusterAccidente) : map.removeLayer(clusterAccidente);
+  }
+}
+
+map.on('mousemove', e => {
+  document.getElementById('lat-val').textContent = e.latlng.lat.toFixed(5);
+  document.getElementById('lng-val').textContent = e.latlng.lng.toFixed(5);
+});
+map.on('zoomend', () => {
+  document.getElementById('zoom-val').textContent = map.getZoom();
+});
+
+function togglePanel(side) {
+  const panel = document.getElementById('panel-'+side);
+  const icon = document.getElementById('icon-'+side);
+  panel.classList.toggle('collapsed');
+  if(side==='left')  icon.className = panel.classList.contains('collapsed') ? 'fa fa-chevron-right':'fa fa-chevron-left';
+  if(side==='right') icon.className = panel.classList.contains('collapsed') ? 'fa fa-chevron-left':'fa fa-chevron-right';
+  setTimeout(() => map.invalidateSize(), 320);
+}
+
+function toggleSection(hdr) {
+  hdr.classList.toggle('open');
+  const body = hdr.nextElementSibling;
+  body.classList.toggle('closed');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LÓGICA DEL FORMULARIO DE REPORTE VÍA MAPA
+═══════════════════════════════════════════════════════════ */
+let isReportingMode = false;
+
+function toggleReportingMode() {
+  isReportingMode = !isReportingMode;
+  const btn = document.getElementById('btn-trigger-report');
+  const text = document.getElementById('btn-report-text');
+  const mapElement = document.getElementById('map');
+  
+  if (isReportingMode) {
+    btn.classList.add('active');
+    text.textContent = 'Haga clic en el mapa...';
+    mapElement.classList.add('reporting-mode');
+    showStatusBarNotification('Modo captura activado. Seleccione el punto exacto del suceso en el mapa.');
+  } else {
+    resetReportingState();
+  }
+}
+
+function resetReportingState() {
+  isReportingMode = false;
+  const btn = document.getElementById('btn-trigger-report');
+  const text = document.getElementById('btn-report-text');
+  const mapElement = document.getElementById('map');
+  btn.classList.remove('active');
+  text.textContent = 'Reportar Incidencia';
+  mapElement.classList.remove('reporting-mode');
+}
+
+map.on('click', function(e) {
+  if (!isReportingMode) return;
+  
+  document.getElementById('form-lat').value = e.latlng.lat.toFixed(6);
+  document.getElementById('form-lng').value = e.latlng.lng.toFixed(6);
+  document.getElementById('report-form-card').style.display = 'flex';
+  resetReportingState();
+});
+
+function closeReportForm() {
+  document.getElementById('report-form-card').style.display = 'none';
+  document.getElementById('incidence-form').reset();
+}
+
+function saveNewIncidence(event) {
+  event.preventDefault();
+  
+  const lat = parseFloat(document.getElementById('form-lat').value);
+  const lng = parseFloat(document.getElementById('form-lng').value);
+  const type = document.getElementById('form-type').value;
+  const loc = document.getElementById('form-loc').value;
+  const sev = document.getElementById('form-sev').value;
+  const modalidad = document.getElementById('form-mod').value;
+  const desc = document.getElementById('form-desc').value;
+  
+  const newId = EVENTS.length + 1;
+  const hoy = new Date();
+  const fecha = hoy.toISOString().split('T')[0];
+  const hora = hoy.toTimeString().split(' ')[0].substring(0,5);
+  
+  const newEvent = {
+    id: newId, type, loc, lat, lng, sev, fecha, hora, modalidad,
+    involucrados: type === 'robo' ? '1 sospechoso' : '1 unidad', desc
+  };
+  
+  EVENTS.push(newEvent);
+  createMarker(newEvent);
+  updateStatsDashboard();
+  renderEvents(currentFilter);
+  pushToTimeline(newEvent);
+  
+  map.flyTo([lat, lng], 16, {duration: 1.2});
+  closeReportForm();
+  showStatusBarNotification(`Éxito: Alerta #${newId} georreferenciada correctamente en San Miguel.`);
+}
+
+function updateStatsDashboard() {
+  const robos = EVENTS.filter(e => e.type === 'robo').length;
+  const accidentes = EVENTS.filter(e => e.type === 'accidente').length;
+  const altas = EVENTS.filter(e => e.sev === 'alta').length;
+  const total = EVENTS.length;
+  
+  document.getElementById('stat-robo').textContent = robos;
+  document.getElementById('stat-accidente').textContent = accidentes;
+  document.getElementById('stat-high').textContent = altas;
+  
+  document.getElementById('cnt-robo').textContent = `${robos} reportes hoy`;
+  document.getElementById('cnt-accidente').textContent = `${accidentes} reportes hoy`;
+  
+  document.getElementById('card-robo').textContent = robos;
+  document.getElementById('card-accidente').textContent = accidentes;
+  document.getElementById('card-high').textContent = altas;
+  document.getElementById('card-total').textContent = total;
+}
+
+function pushToTimeline(ev) {
+  const tl = document.getElementById('live-timeline');
+  const dotClass = ev.type === 'robo' ? 'r' : 'ac';
+  const typeLabel = ev.type === 'robo' ? 'Robo / Asalto' : 'Incidente Vial';
+  
+  const itemHtml = `
+    <div class="tl-item">
+      <div class="tl-dot ${dotClass}"></div>
+      <div class="tl-info">
+        <div class="ti-loc">${typeLabel} — ${ev.loc}</div>
+        <div class="ti-date">Justo ahora · Despacho en camino</div>
+      </div>
+    </div>`;
+  tl.insertAdjacentHTML('afterbegin', itemHtml);
+}
+
+function showStatusBarNotification(text) {
+  const sb = document.getElementById('status-bar');
+  sb.textContent = text;
+  sb.style.opacity = '1';
+  setTimeout(() => { sb.style.opacity = '0'; }, 5000);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDERIZADO DEL PANEL DERECHO INTERACTIVO
+═══════════════════════════════════════════════════════════ */
+let currentFilter = 'all';
+function renderEvents(filter) {
+  const list = document.getElementById('events-list');
+  const filtered = EVENTS.filter(e => filter==='all' || e.type===filter).sort((a,b)=>b.id - a.id);
+  
+  list.innerHTML = filtered.map(ev => `
+    <div class="event-card ${ev.type}" onclick="focusEvent(${ev.id})">
+      <div class="ec-head">
+        <div class="ec-type">${ev.type==='robo'?'🚨 Robo / Asalto':'🚗 Accidentes'}</div>
+        <div class="ec-sev sev-${ev.sev}">${ev.sev.toUpperCase()}</div>
+      </div>
+      <div class="ec-loc">${ev.loc}</div>
+      <div class="ec-date">${ev.fecha} · ${ev.hora}</div>
+      <div class="ec-meta">
+        <span class="ec-tag">ID: #${ev.id}</span>
+        <span class="ec-tag">${ev.type==='robo'?'👤 1ra Prioridad':'🛠️ Emergencia Vial'}</span>
+      </div>
+    </div>`).join('');
+}
+renderEvents('all');
+
+function filterEvents(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.className='filter-chip');
+  if(f==='all')       document.getElementById('fc-all').className='filter-chip active-a';
+  if(f==='robo')      document.getElementById('fc-robo').className='filter-chip active-r';
+  if(f==='accidente') document.getElementById('fc-accidente').className='filter-chip active-ac';
+  renderEvents(f);
+}
+
+function focusEvent(id) {
+  const ev = EVENTS.find(e => e.id === id);
+  if(!ev) return;
+  map.flyTo([ev.lat, ev.lng], 16, {duration: 1.5});
+  setTimeout(() => {
+    const m = markers[ev.id];
+    if(m) {
+      if (ev.type === 'robo') clusterRobo.zoomToShowLayer(m, () => m.openPopup());
+      else clusterAccidente.zoomToShowLayer(m, () => m.openPopup());
+    }
+  }, 1600);
+}
+
+function filterSearch(q) {
+  if(!q) { renderEvents(currentFilter); return; }
+  q = q.toLowerCase();
+  const searchResults = EVENTS.filter(e => 
+    e.loc.toLowerCase().includes(q) || e.modalidad.toLowerCase().includes(q) || e.desc.toLowerCase().includes(q)
+  );
+  
+  const list = document.getElementById('events-list');
+  list.innerHTML = searchResults.map(ev => `
+    <div class="event-card ${ev.type}" onclick="focusEvent(${ev.id})">
+      <div class="ec-head">
+        <div class="ec-type">${ev.type==='robo'?'🚨 Robo':'🚗 Accidente'}</div>
+        <div class="ec-sev sev-${ev.sev}">${ev.sev.toUpperCase()}</div>
+      </div>
+      <div class="ec-loc">${ev.loc}</div>
+      <div class="ec-date">${ev.fecha} · ${ev.hora}</div>
+    </div>`).join('') || '<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:12px">Sin alertas registradas</div>';
+}
+
+setTimeout(() => {
+  showStatusBarNotification('42 Alertas en tiempo real cargadas · Central Operativa San Miguel en línea');
+}, 1000);
+</script>
+</body>
+</html>
